@@ -1,0 +1,45 @@
+########################################################################################################################
+# Define keycloak information here
+# Define all keycloak information minus credentials
+########################################################################################################################
+keycloak:
+  server: https://localhost:8080/auth
+  realm: real-realm
+  user: sunshine
+  client: test
+
+########################################################################################################################
+# Define the realm / client roles that a set of users can have.
+#
+# The list of "profiles" in the watchdog are processed in order. So if a user is specified in the first profile, she
+# won't be evaluated in subsequent profiles
+#
+# The users and the {allow,deny}_roles support regex for easier management. I hope this doesn't bite us in the future
+# The format for realm role is just the role itself, and the format for client role is: 'client:role'
+########################################################################################################################
+watchdog:
+  - name: pnc admins
+    users:
+      - dcheung
+    allowedRoles:
+      - user
+      - admin
+    deniedRoles:
+      - "realm-management:manage-*"
+      - user
+
+watchdogDefault:
+  allowedRoles:
+    - user
+  deniedRoles:
+    - "realm-management:mange-*"
+
+########################################################################################################################
+# Define the default roles that should be configured for the realm
+# If the Keycloak server defines a default role not in this list, the evaluation will fail
+#
+# The format for realm role is just the role itself, and the format for client role is: 'client:role'. You *cannot*
+# use regex to define the roles here
+########################################################################################################################
+defaultRoles:
+  - user
