@@ -116,7 +116,7 @@ public class KeycloakServer {
 
         if (realmRepresentation.isPresent()) {
 
-            defaultRoles.addAll(realmRepresentation.get().getDefaultRoles());
+            defaultRoles.addAll(realmRepresentation.get().getDefaultRole().getComposites().getRealm());
             List<ClientRepresentation> clients = realmRepresentation.get().getClients();
 
             for (ClientRepresentation client : clients) {

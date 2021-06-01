@@ -3,10 +3,10 @@
 # Define all keycloak information minus credentials
 ########################################################################################################################
 keycloak:
-  server: https://localhost:8080/auth
-  realm: real-realm
-  user: sunshine
-  client: test
+  server: http://localhost:8080/auth
+  realm: realm
+  user: user
+  client: client
 
 ########################################################################################################################
 # Define the realm / client roles that a set of users can have.
@@ -40,6 +40,8 @@ watchdogDefault:
 #
 # The format for realm role is just the role itself, and the format for client role is: 'client:role'. You *cannot*
 # use regex to define the roles here
+#
+# TODO: doesn't work for now
 ########################################################################################################################
-defaultRoles:
-  - user
+# defaultRoles:
+  # - user

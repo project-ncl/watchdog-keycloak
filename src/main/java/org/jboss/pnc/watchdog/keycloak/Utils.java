@@ -147,7 +147,7 @@ public class Utils {
         }
     }
 
-    public static void checkDefaultRoles(Configuration configuration, KeycloakServer keycloakServer) {
+    public static boolean checkDefaultRoles(Configuration configuration, KeycloakServer keycloakServer) {
 
         log.info("Verifying default roles");
 
@@ -170,5 +170,6 @@ public class Utils {
                 definedInConfigButNotInKeycloak.forEach(role -> log.error("- " + role));
             }
         }
+        return defaultRolesMatch;
     }
 }
