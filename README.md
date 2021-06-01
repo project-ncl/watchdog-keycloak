@@ -48,7 +48,10 @@ watchdogDefault:
 defaultRoles:
   - user
 ```
-The `keycloak` section defines which Keycloak server, and realm to talk to.
+The `keycloak` section defines which Keycloak server, and realm to talk to. The user used needs to have those 2 client
+roles:
+- realm-management:view-users
+- realm-management:view-clients
 
 The `watchdog` section defines a list of profiles of users. For each profile,
 a list of users need to have approved roles, and other roles they shouldn't be

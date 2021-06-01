@@ -3,16 +3,15 @@ package org.jboss.pnc.watchdog.keycloak.internal;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.keycloak.OAuth2Constants;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.KeycloakBuilder;
 import org.keycloak.admin.client.resource.UserResource;
-import org.keycloak.representations.idm.ClientMappingsRepresentation;
 import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
@@ -64,6 +63,14 @@ public class KeycloakServer {
         // get list of users
         List<UserRepresentation> users = keycloak.realm(this.realm).users().list();
 
+        // Filter through clients that has at least one role
+        List<ClientRepresentation> clientRepresentations = keycloak.realm(this.realm)
+                .clients()
+                .findAll()
+                .stream()
+                .filter(client -> !keycloak.realm(this.realm).clients().get(client.getId()).roles().list().isEmpty())
+                .collect(Collectors.toList());
+
         for (UserRepresentation user : users) {
 
             KeycloakUser keycloakUser = new KeycloakUser();
@@ -78,17 +85,24 @@ public class KeycloakServer {
             keycloakUser.setUsername(user.getUsername());
 
             // get all the realm roles for the user
-            List<RoleRepresentation> realmRoles = resource.roles().getAll().getRealmMappings();
+            List<RoleRepresentation> realmRoles = resource.roles().realmLevel().listEffective();
 
-            for (RoleRepresentation role : realmRoles) {
-                allRoles.add(role.getName());
+            if (realmRoles != null) {
+                for (RoleRepresentation role : realmRoles) {
+                    allRoles.add(role.getName());
+                }
             }
 
-            // get all the client roles for the user
-            Map<String, ClientMappingsRepresentation> mapping = resource.roles().getAll().getClientMappings();
-            for (Map.Entry<String, ClientMappingsRepresentation> clientRoleMapping : mapping.entrySet()) {
-                for (RoleRepresentation role : clientRoleMapping.getValue().getMappings()) {
-                    allRoles.add(clientRoleMapping.getKey() + ":" + role.getName());
+            // find the effective client roles for the user
+            for (ClientRepresentation representation : clientRepresentations) {
+
+                List<RoleRepresentation> effectiveClientRoles = resource.roles()
+                        .clientLevel(representation.getId())
+                        .listEffective();
+
+                if (effectiveClientRoles != null) {
+                    effectiveClientRoles
+                            .forEach(role -> allRoles.add(representation.getClientId() + ":" + role.getName()));
                 }
             }
         }
