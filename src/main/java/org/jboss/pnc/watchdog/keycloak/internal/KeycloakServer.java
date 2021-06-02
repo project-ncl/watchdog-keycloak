@@ -8,9 +8,11 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
+import org.jetbrains.annotations.NotNull;
 import org.keycloak.OAuth2Constants;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.KeycloakBuilder;
+import org.keycloak.admin.client.resource.ClientResource;
 import org.keycloak.admin.client.resource.UserResource;
 import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.representations.idm.RealmRepresentation;
@@ -26,6 +28,7 @@ public class KeycloakServer {
 
     private Keycloak keycloak;
     private String realm;
+    private List<ClientRepresentation> cachedNormalClientWithAtLeastOneRole;
 
     /**
      * Create a new representation of the Keycloak Server
@@ -63,55 +66,40 @@ public class KeycloakServer {
         // get list of users
         List<UserRepresentation> users = keycloak.realm(this.realm).users().list();
 
-        // Filter through clients that has at least one role
-        List<ClientRepresentation> clientRepresentations = keycloak.realm(this.realm)
-                .clients()
-                .findAll()
-                .stream()
-                .filter(client -> !keycloak.realm(this.realm).clients().get(client.getId()).roles().list().isEmpty())
-                .collect(Collectors.toList());
-
         for (UserRepresentation user : users) {
+            toReturn.add(getKeycloakUser(user));
+        }
+        return toReturn;
+    }
 
-            KeycloakUser keycloakUser = new KeycloakUser();
-            toReturn.add(keycloakUser);
+    /**
+     * Get Service account clients and their realm/client roles
+     * 
+     * @return
+     */
+    public Set<KeycloakUser> getServiceAccountClients() {
 
-            List<String> allRoles = new ArrayList<>();
-            keycloakUser.setRoles(allRoles);
+        Set<KeycloakUser> toReturn = new HashSet<>();
 
-            // get more detailed information about the user from Keycloak. UserRepresentation doesn't have the role
-            // information
-            UserResource resource = keycloak.realm(this.realm).users().get(user.getId());
-            keycloakUser.setUsername(user.getUsername());
+        // We only want clients where the service account is enabled
+        List<ClientRepresentation> serviceClients = getServiceAccountClientRepresentation();
 
-            // get all the realm roles for the user
-            List<RoleRepresentation> realmRoles = resource.roles().realmLevel().listEffective();
+        for (ClientRepresentation client : serviceClients) {
 
-            if (realmRoles != null) {
-                for (RoleRepresentation role : realmRoles) {
-                    allRoles.add(role.getName());
-                }
-            }
+            ClientResource clientResource = keycloak.realm(this.realm).clients().get(client.getId());
 
-            // find the effective client roles for the user
-            for (ClientRepresentation representation : clientRepresentations) {
+            UserResource resource = keycloak.realm(this.realm)
+                    .users()
+                    .get(clientResource.getServiceAccountUser().getId());
 
-                List<RoleRepresentation> effectiveClientRoles = resource.roles()
-                        .clientLevel(representation.getId())
-                        .listEffective();
-
-                if (effectiveClientRoles != null) {
-                    effectiveClientRoles
-                            .forEach(role -> allRoles.add(representation.getClientId() + ":" + role.getName()));
-                }
-            }
+            toReturn.add(getKeycloakUser(resource.toRepresentation()));
         }
         return toReturn;
     }
 
     /**
      * Get the list of default realm, and client roles from the Keycloak server
-     *
+     * <p>
      * TODO: Doesn't really work. Asking in keycloak forum for help:
      * https://keycloak.discourse.group/t/find-default-realm-roles-using-keycloak-admin-client/9350
      *
@@ -141,5 +129,90 @@ public class KeycloakServer {
         }
 
         return defaultRoles;
+    }
+
+    /**
+     * Get normal clients that have at least one client role (not service account clients)
+     *
+     * @return list of normal clients
+     */
+    @NotNull
+    private List<ClientRepresentation> getNormalClientRepresentationWithAtLeastOneRole() {
+
+        return keycloak.realm(this.realm)
+                .clients()
+                .findAll()
+                .stream()
+                .filter(client -> !keycloak.realm(this.realm).clients().get(client.getId()).roles().list().isEmpty())
+                .filter(client -> !client.isServiceAccountsEnabled())
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get cached normal clients that have at least one client role (not service account clients) Data not refreshed
+     * after the first time this method is called
+     *
+     * @return list of normal clients
+     */
+    @NotNull
+    private List<ClientRepresentation> getCachedNormalClientRepresentationWithAtLeastOneRole() {
+
+        if (cachedNormalClientWithAtLeastOneRole == null) {
+            cachedNormalClientWithAtLeastOneRole = getNormalClientRepresentationWithAtLeastOneRole();
+        }
+
+        return cachedNormalClientWithAtLeastOneRole;
+    }
+
+    /**
+     * Get service account clients onl
+     *
+     * @return list of service account clients
+     */
+    @NotNull
+    private List<ClientRepresentation> getServiceAccountClientRepresentation() {
+
+        return keycloak.realm(this.realm)
+                .clients()
+                .findAll()
+                .stream()
+                .filter(c -> c.isServiceAccountsEnabled())
+                .collect(Collectors.toList());
+    }
+
+    private KeycloakUser getKeycloakUser(UserRepresentation user) {
+
+        KeycloakUser keycloakUser = new KeycloakUser();
+        List<ClientRepresentation> normalClients = getCachedNormalClientRepresentationWithAtLeastOneRole();
+
+        List<String> allRoles = new ArrayList<>();
+        keycloakUser.setRoles(allRoles);
+
+        // get more detailed information about the user from Keycloak. UserRepresentation doesn't have the role
+        // information
+        UserResource resource = keycloak.realm(this.realm).users().get(user.getId());
+        keycloakUser.setUsername(user.getUsername());
+
+        // get all the realm roles for the user
+        List<RoleRepresentation> realmRoles = resource.roles().realmLevel().listEffective();
+
+        if (realmRoles != null) {
+            for (RoleRepresentation role : realmRoles) {
+                allRoles.add(role.getName());
+            }
+        }
+
+        // find the effective client roles for the user
+        for (ClientRepresentation representation : normalClients) {
+
+            List<RoleRepresentation> effectiveClientRoles = resource.roles()
+                    .clientLevel(representation.getId())
+                    .listEffective();
+
+            if (effectiveClientRoles != null) {
+                effectiveClientRoles.forEach(role -> allRoles.add(representation.getClientId() + ":" + role.getName()));
+            }
+        }
+        return keycloakUser;
     }
 }

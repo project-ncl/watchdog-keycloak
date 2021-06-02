@@ -24,8 +24,8 @@ import lombok.extern.slf4j.Slf4j;
 public class Utils {
 
     /**
-     * check if user role matches the constraints defined in the config file If everything is fine, return true, else
-     * false
+     * check if user / client service account role matches the constraints defined in the config file If everything is
+     * fine, return true, else false
      *
      * @param configuration
      * @param keycloakServer
@@ -35,8 +35,11 @@ public class Utils {
         log.info("Verifying user roles...");
 
         Set<KeycloakUser> users = keycloakServer.getUsers();
+        Set<KeycloakUser> serviceAccounts = keycloakServer.getServiceAccountClients();
         Map<String, KeycloakUser> userMap = users.stream()
                 .collect(Collectors.toMap(KeycloakUser::getUsername, self -> self));
+
+        serviceAccounts.stream().map(serviceAccount -> userMap.put(serviceAccount.getUsername(), serviceAccount));
 
         // Make a copy of the users list that are un-processed
         Set<String> usersUnprocessed = new HashSet<>(userMap.keySet());
