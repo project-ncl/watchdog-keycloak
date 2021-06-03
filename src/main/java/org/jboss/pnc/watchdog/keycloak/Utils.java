@@ -39,7 +39,7 @@ public class Utils {
         Map<String, KeycloakUser> userMap = users.stream()
                 .collect(Collectors.toMap(KeycloakUser::getUsername, self -> self));
 
-        serviceAccounts.stream().map(serviceAccount -> userMap.put(serviceAccount.getUsername(), serviceAccount));
+        serviceAccounts.forEach(serviceAccount -> userMap.put(serviceAccount.getUsername(), serviceAccount));
 
         // Make a copy of the users list that are un-processed
         Set<String> usersUnprocessed = new HashSet<>(userMap.keySet());
@@ -50,7 +50,7 @@ public class Utils {
 
         for (WatchdogProfile profile : profiles) {
 
-            log.info("Processing profile: {}", profile.getName());
+            log.info("Processing profile: {}...", profile.getName());
             for (String user : profile.getUsers()) {
 
                 if (userMap.containsKey(user)) {
@@ -74,6 +74,7 @@ public class Utils {
         }
 
         // Verifying regular users
+        log.info("Checking the rest of the users...");
         WatchdogDefault watchdogDefault = configuration.getWatchdogDefault();
         for (String user : usersUnprocessed) {
             KeycloakUser keycloakUser = userMap.get(user);

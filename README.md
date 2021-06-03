@@ -3,6 +3,9 @@
 Validate Keycloak server settings against a YAML file describing what it should
 have.
 
+Checks both regular users and client service accounts. The service account
+user's name start with 'service-account-' (e.g service-account-client-sa)
+
 # Compile
 ```
 mvn clean install
