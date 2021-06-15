@@ -144,7 +144,6 @@ public class KeycloakServer {
                 .findAll()
                 .stream()
                 .filter(client -> !keycloak.realm(this.realm).clients().get(client.getId()).roles().list().isEmpty())
-                .filter(client -> !client.isServiceAccountsEnabled())
                 .collect(Collectors.toList());
     }
 
