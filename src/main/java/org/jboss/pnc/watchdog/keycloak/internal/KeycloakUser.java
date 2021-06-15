@@ -12,4 +12,5 @@ public class KeycloakUser {
 
     private String username;
     private List<String> roles;
+    private boolean serviceAccount;
 }

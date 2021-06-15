@@ -67,7 +67,7 @@ public class KeycloakServer {
         List<UserRepresentation> users = keycloak.realm(this.realm).users().list();
 
         for (UserRepresentation user : users) {
-            toReturn.add(getKeycloakUser(user));
+            toReturn.add(getKeycloakUser(user, false));
         }
         return toReturn;
     }
@@ -92,7 +92,7 @@ public class KeycloakServer {
                     .users()
                     .get(clientResource.getServiceAccountUser().getId());
 
-            toReturn.add(getKeycloakUser(resource.toRepresentation()));
+            toReturn.add(getKeycloakUser(resource.toRepresentation(), true));
         }
         return toReturn;
     }
@@ -179,7 +179,7 @@ public class KeycloakServer {
                 .collect(Collectors.toList());
     }
 
-    private KeycloakUser getKeycloakUser(UserRepresentation user) {
+    private KeycloakUser getKeycloakUser(UserRepresentation user, boolean isServiceAccount) {
 
         KeycloakUser keycloakUser = new KeycloakUser();
         List<ClientRepresentation> normalClients = getCachedNormalClientRepresentationWithAtLeastOneRole();
@@ -191,6 +191,7 @@ public class KeycloakServer {
         // information
         UserResource resource = keycloak.realm(this.realm).users().get(user.getId());
         keycloakUser.setUsername(user.getUsername());
+        keycloakUser.setServiceAccount(isServiceAccount);
 
         // get all the realm roles for the user
         List<RoleRepresentation> realmRoles = resource.roles().realmLevel().listEffective();

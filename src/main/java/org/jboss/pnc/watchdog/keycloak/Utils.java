@@ -62,7 +62,8 @@ public class Utils {
                     boolean isValid = compareRoles(
                             keycloakUser.getRoles(),
                             profile.getAllowedRoles(),
-                            profile.getDeniedRoles());
+                            profile.getDeniedRoles(),
+                            keycloakUser.isServiceAccount());
                     if (!isValid) {
                         allGood = false;
                     }
@@ -83,7 +84,8 @@ public class Utils {
             boolean isValid = compareRoles(
                     keycloakUser.getRoles(),
                     watchdogDefault.getAllowedRoles(),
-                    watchdogDefault.getDeniedRoles());
+                    watchdogDefault.getDeniedRoles(),
+                    keycloakUser.isServiceAccount());
             if (!isValid) {
                 allGood = false;
             }
@@ -92,8 +94,23 @@ public class Utils {
         return allGood;
     }
 
+    /**
+     * If a user is not a service account and missing allowed roles, consider it a warning but not a fail. If a user is
+     * a service account and missing allowed roles, consider it a fail If a user has denied roles in its current roles,
+     * consider it a fail
+     *
+     * @param currentRoles
+     * @param allowedRoles
+     * @param deniedRoles
+     * @param isServiceAccount
+     * @return false if validation fails, true otherwise
+     */
     @NonNull
-    static boolean compareRoles(List<String> currentRoles, List<String> allowedRoles, List<String> deniedRoles) {
+    static boolean compareRoles(
+            List<String> currentRoles,
+            List<String> allowedRoles,
+            List<String> deniedRoles,
+            boolean isServiceAccount) {
 
         List<String> allowedRolesMissing = new ArrayList<>();
         List<String> deniedRolesPresent = new ArrayList<>();
@@ -137,14 +154,18 @@ public class Utils {
         }
 
         if (!allowedRolesMissing.isEmpty()) {
-            log.error("User missing roles: {}", allowedRolesMissing);
+            if (isServiceAccount) {
+                log.error("User missing roles: {}", allowedRolesMissing);
+            } else {
+                log.warn("User missing roles: {}", allowedRolesMissing);
+            }
         }
 
         if (!deniedRolesPresent.isEmpty()) {
             log.error("User has roles which are in the deny list: {}", deniedRolesPresent);
         }
 
-        if (!allowedRolesMissing.isEmpty() || !deniedRolesPresent.isEmpty()) {
+        if ((!allowedRolesMissing.isEmpty() && isServiceAccount) || !deniedRolesPresent.isEmpty()) {
             return false;
         } else {
             return true;
